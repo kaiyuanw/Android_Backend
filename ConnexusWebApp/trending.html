@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+{% autoescape true %}
+<html>
+<head>
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css">
+	<script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="http://code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+
+
+	<script type="text/javascript">
+		$('document').ready(function(){
+			var allWords = "{{keyWordList}}";
+			var wordsList = allWords.split(',');
+			$('#auto').autocomplete({source :wordsList});
+		});
+	</script>
+
+</head>	
+	<body>
+		<nav class="navbar navbar-default navbar-fixed-top navbar-inverse" role="navigation">
+			<a class="navbar-brand" href="#">Connexus</a>
+			<ul class="nav navbar-nav">
+				<li>
+					<a href="/manage">Manage</a>
+				</li>
+				<li>
+					<a href="/create">Create</a>
+				</li>
+				<li>
+					<a href="/viewAllStreams">View</a>
+				</li>
+				<li class="active">
+					<a href="/trending">Trending</a>
+				</li>
+				<li class="navbar-link">
+					<a href="{{logoutURL}}">Logout</a>
+				</li>
+			</ul>
+		<form class="navbar-form navbar-right" action="/searchHandler" role="search" method="post">
+        	<div class="form-group">
+          		<input type="text" class="form-control" placeholder="Search Stream" name="searchContent" autocomplete="off" id="auto">
+        	</div>
+        	<button type="submit" class="btn btn-default">Submit</button>
+      	</form>
+		</nav>
+		<br>
+		<br>
+
+		<div class="panel panel-default">
+ 	 		<div class="panel-heading">
+    			<h1>Trending Streams</h1>
+  			</div>
+ 	 		<div class="panel-body">
+ 	 			<table>
+    			<div class="row">
+    			{% for stream in top3Streams %}
+    				<tr>
+	  					<div class="col-xs-6 col-md-3">
+	    					<a href="/view/{{stream.key.id()}}/0_2" class="thumbnail" href="/view/{{stream.key.id()}}/0_2">
+	      						<img align="middle" style="width:200px;height:200px"  src="{{stream.coverURL}}" alt="{{stream.streamName}}" title="{{stream.streamName}}">
+	      						<div class="caption" align="middle">
+	        						<h3>{{stream.viewsPastHour}} views in the past hour</h3>
+	      						</div>
+	    					</a>
+	  					</div>
+  					</tr>
+				</div>
+				{% endfor %}
+				</table>
+			<div class="panel panel-default pull-right">
+  			<div class="panel-heading">
+    			<h3 class="panel-title">Email Trending Report</h3>
+  			</div>
+  			<div class="panel-body">
+	   			<form action="/trendHandler" method="post">
+
+	   				<table>
+						{% if userFound == False or userFound.trendUpdate == 'noReports' %}
+							<tr><td><input type="radio" name="report" value="noReports" checked="checked"></td><td>No Reports</td></tr>
+							<tr><td><input type="radio" name="report" value="every5Minutes"></td><td>Every 5 Minutes</td></tr>
+							<tr><td><input type="radio" name="report" value="every1hour"><td>Every 1 Hour</td></tr>
+							<tr><td><input type="radio" name="report" value="everyday"></td><td>Every Day</td></tr>
+						{% elif userFound.trendUpdate == 'every5Minutes' %}
+							<tr><td><input type="radio" name="report" value="noReports"></td><td>No Reports</td></tr>
+							<tr><td><input type="radio" name="report" value="every5Minutes" checked="checked"></td><td>Every 5 Minutes</td></tr>
+							<tr><td><input type="radio" name="report" value="every1hour"><td>Every 1 Hour</td></tr>
+							<tr><td><input type="radio" name="report" value="everyday"></td><td>Every Day</td></tr>
+						{% elif userFound.trendUpdate == 'every1hour' %}
+							<tr><td><input type="radio" name="report" value="noReports"></td><td>No Reports</td></tr>
+							<tr><td><input type="radio" name="report" value="every5Minutes"></td><td>Every 5 Minutes</td></tr>
+							<tr><td><input type="radio" name="report" value="every1hour" checked="checked"><td>Every 1 Hour</td></tr>
+							<tr><td><input type="radio" name="report" value="everyday"></td><td>Every Day</td></tr>
+						{% elif userFound.trendUpdate == 'everyday' %}
+							<tr><td><input type="radio" name="report" value="noReports"></td><td>No Reports</td></tr>
+							<tr><td><input type="radio" name="report" value="every5Minutes"></td><td>Every 5 Minutes</td></tr>
+							<tr><td><input type="radio" name="report" value="every1hour"><td>Every 1 Hour</td></tr>
+							<tr><td><input type="radio" name="report" value="everyday" checked="checked"></td><td>Every Day</td></tr>
+						{% endif %}
+					</table>
+					<br>
+				<button type="submit" class="btn btn-default btn-group-s">Update Rate</button>
+				</form>
+  			</div>
+		</div>
+	</div>
+
+	</body>
+</html>
+{% endautoescape %}

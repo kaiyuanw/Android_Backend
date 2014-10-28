@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+{% autoescape true %}
+<html>
+<head>
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.1/themes/smoothness/jquery-ui.css">
+	<script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="http://code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+
+
+	<script type="text/javascript">
+		$('document').ready(function(){
+			var allWords = "{{keyWordList}}";
+			var wordsList = allWords.split(',');
+			$('#auto').autocomplete({source :wordsList});
+		});
+	</script>
+
+</head>	
+	<body>
+		<nav class="navbar navbar-default navbar-fixed-top navbar-inverse" role="navigation">
+			<a class="navbar-brand" href="#">Connexus</a>
+			<ul class="nav navbar-nav">
+				<li>
+					<a href="/manage">Manage</a>
+				</li>
+				<li class="active">
+					<a href="/create">Create</a>
+				</li>
+				<li>
+					<a href="/viewAllStreams">View</a>
+				</li>
+				<li>
+					<a href="/trending">Trending</a>
+				</li>
+				<li class="navbar-link">
+					<a href="{{logoutURL}}">Logout</a>
+				</li>
+			</ul>
+		<form class="navbar-form navbar-right" action="/searchHandler" role="search" method="post">
+        	<div class="form-group">
+          		<input type="text" class="form-control" placeholder="Search Stream" name="searchContent" autocomplete="off" id="auto">
+        	</div>
+        	<button type="submit" class="btn btn-default">Submit</button>
+      	</form>
+		</nav>
+		<br>
+		<div class="page-header">
+	  		<h1>Create a New Stream </h1>
+		</div>
+		<form role="form" action="/createStreamHandler" method="post">
+			<div class="form-group">
+				<label for="streamName">Name Your Stream:</label>
+				<input type="text" class="form-control" placeholder="Enter your new stream name" name="streamName">
+			</div>
+			<div class="form-group">
+				<label for="subscribers">Add Subscribers (Enter each email addresses on its own line with no extra characters): </label>
+				<textarea type="text" class="form-control" rows="3" placeholder="Enter your subscribers" name="subscribers"></textarea>
+			</div>
+			<div class="form-group">
+				<label for="message">Optional Message: </label>
+				<textarea type="text" class="form-control" rows="3" placeholder="Enter your optional message" name="message"></textarea>
+			</div>
+			<div class="form-group">
+				<label for="tags">Tag Your Stream: (ex. #austin): </label>
+				<input type="text" class="form-control" placeholder="Enter your tags" name="tags">
+			</div>
+			<div class="form-group">
+				<label for="coverURL">URL to cover image (can be empty): </label>
+				<input type="text" class="form-control" placeholder="Paste your cover image URL" name="coverURL">
+			</div>
+			<button type="submit" class="btn btn-default pull-right">Create Stream</button>
+		</form>
+	</body>
+</html>
+{% endautoescape %}

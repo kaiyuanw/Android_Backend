@@ -1,0 +1,13 @@
+cron:
+- description: Every 5 Minutes
+  url: /trendEmail
+  schedule: every 5 mins from 00:00 to 23:59
+- description: Every 1 Hour
+  url: /trendEmail
+  schedule: every 1 hours from 00:00 to 23:59
+- description: Every Day
+  url: /trendEmail
+  schedule: every day 10:00
+- description: Reset Views
+  url: /viewResetHandler
+  schedule: every 1 hours
