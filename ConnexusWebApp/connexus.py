@@ -13,6 +13,9 @@ import jinja2
 import os
 import json
 import random
+import base64
+import cgi
+from math import sin, cos, sqrt, atan2, radians
 
 JINJA_ENVIRONMENT = jinja2.Environment(
     loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
@@ -74,6 +77,8 @@ class MainPage(webapp2.RequestHandler):
 
 		self.response.write(template.render(template_values))
 
+
+
 class Management(webapp2.RequestHandler):
 	def get(self):
 		user = users.get_current_user()
@@ -107,22 +112,9 @@ class DeleteStreamHandler(webapp2.RequestHandler):
 		deleteStreamList=[]
 		deleteStreamList=self.request.get_all('deleteCheckbox')
 		stream_query = Stream.query()
-
-
-
 		keywordObject = Keywords.query()
-
-
-
-
-
 		for stream in stream_query:
 			if str(stream.key.id()) in deleteStreamList:
-
-
-
-
-
 				print stream.streamName
 				try:
 					for q in keywordObject:
@@ -135,11 +127,6 @@ class DeleteStreamHandler(webapp2.RequestHandler):
 							q.put()
 				except:
 					pass
-
-
-
-
-
 
 				for pic in stream.photos:
 					images.delete_serving_url(pic.blob_key)
@@ -207,9 +194,6 @@ class CreateStreamHandler(webapp2.RequestHandler):
 			stream = Stream(streamName=self.request.get("streamName"),creator=users.get_current_user().user_id(),photos=[],subscribers=[],views=0,viewsPastHour=0,
 				coverURL=self.request.get("coverURL"),optionalMessage=self.request.get("message"),tags=self.request.get("tags"),inviteSubscribers=self.request.get("subscribers"))
 			currStreamKey=stream.put()
-			
-
-
 
 			print keywordObject.get()
 			for q in keywordObject:
@@ -219,9 +203,6 @@ class CreateStreamHandler(webapp2.RequestHandler):
 				for q in keywordObject:
 					q.globalKeywordsArray.append(keyword)
 					q.put()
-			
-
-
 
 			if self.request.get('subscribers') != '':
 				emailList = re.split('\r\n',self.request.get('subscribers'))
@@ -615,10 +596,13 @@ class GeoViewHandler(webapp2.RequestHandler):
 			#photodate = photodate.replace('-','')
 			photoInfo = []
 			photoInfo.append(photo.date.strftime('%s'))
-			photoLatCord = -57.32652122521709+114.65304245043419*random.random()
-			photoLngCord = -123.046875+246.09375*random.random()
-			photoInfo.append(photoLatCord)
-			photoInfo.append(photoLngCord)
+			#photoLatCord = -57.32652122521709+114.65304245043419*random.random()
+			#photoLngCord = -123.046875+246.09375*random.random()
+			
+			location = str(photo.loc).split(',')
+			
+			photoInfo.append(location[0])
+			photoInfo.append(location[1])
 			photoTimeDict[str(images.get_serving_url(photo.blob_key))]=photoInfo
 
 		# print "here is dumped photoTimeDict"
@@ -663,46 +647,26 @@ class PhotoUploadHandler(webapp2.RequestHandler):
 		file.seek(0)  # Reset the file position to the beginning
 		return size
 
-	'''
-	keys = [0] * 10000
-	keyIndex = 0
-	visited = False
-	'''
-
 	def write_blob(self, s, data, info):
 		blob = files.blobstore.create()
 		with files.open(blob, 'a') as f:
 			f.write(data)
 		files.finalize(blob)
-		# currFlag=False
-		# while currFlag==False:
-		# 	for flag in PutFlag.query():
-		# 		currFlag=flag.allowPut
-		# 		print currFlag
+
 		q = Stream.query()
 		for stream in q:
 			if str(stream.key.id()) == s:
 
 				print 'this is the correct blobkey: '
 				print files.blobstore.get_blob_key(blob)
-				user_photo = Image(user=users.get_current_user().user_id(),blob_key = files.blobstore.get_blob_key(blob))
+				picloc=ndb.GeoPt(-57.32652122521709+114.65304245043419*random.random(),-123.046875+246.09375*random.random())
+				user_photo = Image(user=users.get_current_user().user_id(),blob_key = files.blobstore.get_blob_key(blob),loc=picloc)
 				stream.photos.append(user_photo)
 				stream.dateCreated=datetime.datetime.now()
-				print 'put in'
-				
 
 				strkey = stream.put()
-				# for flag in PutFlag.query():
-				# 	flag.allowPut=True
-				# 	flag.put()
-				print 'put finishes'
-				print strkey
-				'''
-				user_photo = Image(user=users.get_current_user().user_id(),blob_key = files.blobstore.get_blob_key(blob))
-				PhotoUploadHandler.keys[PhotoUploadHandler.keyIndex] = user_photo
-				print 'PUT IN! index is ' + str(PhotoUploadHandler.keyIndex)
-				PhotoUploadHandler.keyIndex = PhotoUploadHandler.keyIndex + 1
-				'''
+				
+				
 
 		return files.blobstore.get_blob_key(blob)
 
@@ -794,9 +758,332 @@ class PhotoUploadHandler(webapp2.RequestHandler):
 						del stream.photos[index]
 						stream.put()
 
+class AndMainPage(webapp2.RequestHandler):
+    def get(self):
+		stream_query = Stream.query()
+		streamDictsArr = []
+		for stream in stream_query:
+			streamDict = {}
+			streamDict["streamName"]=stream.streamName
+			streamDict["creator"]=stream.creator
+			streamDict["dateCreated"]=str(stream.dateCreated)
+			streamDict["photos"]=[]
+			streamDict["subscribers"]=[]
+			streamDict["inviteSubscribers"]=stream.inviteSubscribers
+			streamDict["views"] = stream.views
+			streamDict["viewsPastHour"] = stream.viewsPastHour
+			streamDict["coverURL"] = stream.coverURL
+			streamDict["tags"] = stream.tags
+			streamDict["optionalMessage"] = stream.optionalMessage
+			for subscriber in stream.subscribers:
+				streamDict["subscribers"].append(subscriber)
+			for photo in stream.photos:
+				photoDict = {}
+				photoDict["photoServingURL"] = str(images.get_serving_url(photo.blob_key))
+				photoDict["date"] = str(photo.date)
+				photoDict["loc"] = str(photo.loc)
+				streamDict["photos"].append(photoDict)
+			streamDictsArr.append(streamDict)
+		dictPassed = {'streamDictsArr': streamDictsArr}
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class AndViewAllStreams(webapp2.RequestHandler):
+	def get(self):
+		stream_query = Stream.query()
+		streamDictsArr = []
+		for stream in stream_query:
+			streamDict = {}
+			streamDict["streamName"]=stream.streamName
+			streamDict["creator"]=stream.creator
+			streamDict["dateCreated"]=str(stream.dateCreated)
+			streamDict["photos"]=[]
+			streamDict["subscribers"]=[]
+			streamDict["inviteSubscribers"]=stream.inviteSubscribers
+			streamDict["views"] = stream.views
+			streamDict["viewsPastHour"] = stream.viewsPastHour
+			streamDict["coverURL"] = stream.coverURL
+			streamDict["tags"] = stream.tags
+			streamDict["optionalMessage"] = stream.optionalMessage
+			streamDict["streamID"] = str(stream.key.id())
+			for subscriber in stream.subscribers:
+				streamDict["subscribers"].append(subscriber)
+			for photo in stream.photos:
+				photoDict = {}
+				photoDict["photoServingURL"] = str(images.get_serving_url(photo.blob_key))
+				photoDict["date"] = str(photo.date)
+				photoDict["loc"] = str(photo.loc)
+				streamDict["photos"].append(photoDict)
+			streamDictsArr.append(streamDict)
+		streamDictsArr=sorted(streamDictsArr, key=lambda k: k['dateCreated'])
+		streamDictsArr=streamDictsArr[::-1]
+
+		user = users.get_current_user()
+		dictPassed = {}
+		if user is None:
+			dictPassed = {'streamDictsArr': streamDictsArr,'user':None,'logoutURL':users.create_logout_url('/andmain')}
+		else:
+			dictPassed = {'streamDictsArr': streamDictsArr,'user':str(user.user_id()),'logoutURL':users.create_logout_url('/andmain')}
+		
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class AndViewSingleStream(webapp2.RequestHandler):
+	def get(self,url,photoIndexes):
+		# photoIndexes is current photo indexes
+		# indexURL is for "more photos"
+		q = Stream.query()
+		indexList = str(photoIndexes).split('_')
+		stream = ''
+		picURLList = []
+		captionList = []
+		indexURL = photoIndexes
+		image = []
+		for s in q:
+			if str(s.key.id())==url:
+				stream = s
+				if photoIndexes == '0_15':
+					s.views+=1
+					s.viewsPastHour+=1
+					s.put()
+				image = s.photos
+				image = image[::-1]
+
+		if len(image)-1>int(indexList[1]):
+			for i in range(int(indexList[0]),int(indexList[1])+1):
+				blob_key = image[i]
+				picURL = images.get_serving_url(image[i].blob_key)
+				picURLList.append(picURL)
+				captionList.append(image[i].caption)
+			indexURL = str(int(indexList[0])+16)+'_'+str(int(indexList[1])+16)
+
+		else:
+			for i in range(int(indexList[0]),min(int(indexList[1])+1,len(image))):
+				blob_key = image[i]
+				picURL = images.get_serving_url(image[i].blob_key)
+				picURLList.append(picURL)
+				captionList.append(image[i].caption)
+		if stream == '':
+			upload_url = ''
+		else:
+			upload_url = str((stream.key.id()))
+
+
+
+		user = users.get_current_user()
+		dictPassed = {}
+		if user is None:
+			dictPassed = {
+			'user':None,
+			'logoutURL':users.create_logout_url('/andmain'),
+			'indexURL':indexURL,
+			'upload_url' : str(stream.key.id()),
+			'streamName' : stream.streamName,
+			'displayImages' : picURLList
+			}
+		else:
+			dictPassed = {
+			'user':str(user.user_id()),
+			'logoutURL':users.create_logout_url('/andmain'),
+			'indexURL':indexURL,
+			'upload_url' : str(stream.key.id()),
+			'streamName' : stream.streamName,
+			'displayImages' : picURLList
+			}
+		
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class AndViewNearbyPhotos(webapp2.RequestHandler):
+	def get(self,photoIndexes,currentLocation):
+		passedInCoord = currentLocation.split('_')
+		lat=float(passedInCoord[0])
+		lon=float(passedInCoord[1])
+
+		stream_query = Stream.query()
+		indexList = str(photoIndexes).split('_')
+		allPhotos = []
+		displayPhotoList = []
+		indexURL = photoIndexes
+		
+		for stream in stream_query:
+			for photo in stream.photos:
+				photoDict = {}
+				photoDict["photoServingURL"] = str(images.get_serving_url(photo.blob_key))
+				photoDict["date"] = str(photo.date)
+				photoDict["loc"] = str(photo.loc)
+				photoDict["streamName"] = str(stream.streamName)
+				photoDict["streamID"] = str(stream.key.id())
+				photoCoord=str(photo.loc).split(',')
+				plat=float(photoCoord[0])
+				plon=float(photoCoord[1])
+				R = 6373.0
+
+				lat1 = radians(lat)
+				lon1 = radians(lon)
+				lat2 = radians(plat)
+				lon2 = radians(plon)
+
+				dlon = lon2 - lon1
+				dlat = lat2 - lat1
+				a = (sin(dlat/2))**2 + cos(lat1) * cos(lat2) * (sin(dlon/2))**2
+				c = 2 * atan2(sqrt(a), sqrt(1-a))
+				distance = R * c
+				photoDict["actualDistance"] = distance
+				if distance>10:
+					photoDict["strDistance"]=str(distance).split('.', 1)[0]+'km'
+				else:
+					photoDict["strDistance"]=str(distance*1000).split('.', 1)[0]+'m'
+				allPhotos.append(photoDict)
+
+		allPhotos=sorted(allPhotos, key=lambda k: k['actualDistance'])
+		passedPhotos = []
+		morePhotos = "False"
+		indexList = str(photoIndexes).split('_')
+		if len(allPhotos)-1>int(indexList[1]):
+			for i in range(int(indexList[0]),int(indexList[1])+1):
+				passedPhotos.append(allPhotos[i])
+			indexURL = str(int(indexList[0])+16)+'_'+str(int(indexList[1])+16)
+			morePhotos="True"
+
+		else:
+			for i in range(int(indexList[0]),len(allPhotos)):
+				passedPhotos.append(allPhotos[i])
+
+		dictPassed = {'user':None,'morePhotos':morePhotos,'logoutURL':users.create_logout_url('/andmain'),'indexURL':indexURL,'allPhotos':passedPhotos}#'displayPhotoList' : displayStreamList
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class AndSearchHandler(webapp2.RequestHandler):
+	def get(self,searchContent):
+		
+		userInputString = searchContent
+		stream_query = Stream.query()
+		streamDictsArr = []
+		outputStreams = []
+		streamsFound = []
+		streamsFoundIDs = []
+		streamsFoundNames = []
+		streamsFoundCoverURL = []
+		if userInputString == "":
+			streamsFound = []
+		else:
+			userInput = userInputString.split('_')
+			matchingStreamIDs=[]
+			
+			streamsFound = []
+			for stream in stream_query:
+				streamNameArray = stream.streamName.split(' ')
+				streamNameArray2=[]
+				tagsArray2=[]
+				for s in streamNameArray:
+					s=s.lower()
+					s=str(s)
+					streamNameArray2.append(s)
+				tagsArray = stream.tags.split(' ')
+				for tag in tagsArray:
+					tag=tag.replace('#','')
+					tag=tag.lower()
+					tag=str(tag)
+					tagsArray2.append(tag)
+				for keyword in userInput:
+					if str(keyword.lower()) in (tagsArray2) or str(keyword.lower()) in (streamNameArray2) and stream not in streamsFound:
+						streamsFound.append(stream)
+						streamsFoundIDs.append(str(stream.key.id()))
+						streamsFoundNames.append(stream.streamName)
+						streamsFoundCoverURL.append(stream.coverURL)
+
+
+
+		dictPassed = {
+			'streamsFoundIDs' : streamsFoundIDs,
+			'streamsFoundNames' : streamsFoundNames,
+			'streamsFoundCoverURL' : streamsFoundCoverURL
+		}
+		
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class AndGetUploadURL(webapp2.RequestHandler):
+	def get(self,streamid):
+		upload_url = blobstore.create_upload_url('/andUploadHandler/%s' %streamid)
+		upload_url = str(upload_url)
+		dictPassed = {'upload_url':upload_url}
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+
+class AndUploadHandler(blobstore_handlers.BlobstoreUploadHandler):
+    def post(self,url):
+    	print "this is being called"
+        upload_files = self.get_uploads()  # 'file' is file upload field in the form
+    	blob_info = upload_files[0]
+    	print self.request.params
+    	print self.request.params['location']
+    	print self.request.params['photoCaption']
+    	
+    	
+    	blob_key_for_image=blob_info.key()
+    	serving_url = images.get_serving_url(blob_key_for_image)
+    	print serving_url
+    	location = self.request.params['location']
+    	geoLocation = location.split('_')
+    	picloc=ndb.GeoPt(float(geoLocation[0]),float(geoLocation[1]))
+    	user_photo = Image(blob_key = blob_key_for_image,loc=picloc,caption=self.request.params['photoCaption'])
+    	q = Stream.query()
+    	for stream in q:
+        	if str(stream.key.id())==url:
+        		stream.photos.append(user_photo)
+        		stream.dateCreated=datetime.datetime.now()
+        		stream.put()
+
+class AndSubscribedStream(webapp2.RequestHandler):
+	def get(self,userName):
+		subscribedStreamList=[]
+		streamDictsArr=[]
+		stream_query = Stream.query().order(-Stream.dateCreated)
+		for stream in stream_query:
+			if str(userName) in stream.subscribers:
+				subscribedStreamList.append(stream)
+		for stream in subscribedStreamList:
+			streamDict = {}
+			streamDict["streamName"]=stream.streamName
+			streamDict["creator"]=stream.creator
+			streamDict["dateCreated"]=str(stream.dateCreated)
+			streamDict["photos"]=[]
+			streamDict["subscribers"]=[]
+			streamDict["inviteSubscribers"]=stream.inviteSubscribers
+			streamDict["views"] = stream.views
+			streamDict["viewsPastHour"] = stream.viewsPastHour
+			streamDict["coverURL"] = stream.coverURL
+			streamDict["tags"] = stream.tags
+			streamDict["optionalMessage"] = stream.optionalMessage
+			streamDict["streamID"] = str(stream.key.id())
+			for subscriber in stream.subscribers:
+				streamDict["subscribers"].append(subscriber)
+			for photo in stream.photos:
+				photoDict = {}
+				photoDict["photoServingURL"] = str(images.get_serving_url(photo.blob_key))
+				photoDict["date"] = str(photo.date)
+				photoDict["loc"] = str(photo.loc)
+				streamDict["photos"].append(photoDict)
+			streamDictsArr.append(streamDict)
+		streamDictsArr=sorted(streamDictsArr, key=lambda k: k['dateCreated'])
+		streamDictsArr=streamDictsArr[::-1]
+		dictPassed = {'streamDictsArr': streamDictsArr,'user':None,'logoutURL':users.create_logout_url('/andmain')}
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
 
 application = webapp2.WSGIApplication([
     ('/', MainPage),
+    ('/andmain',AndMainPage),
+    ('/andViewAllStreams',AndViewAllStreams),
+    ('/andViewSingleStream/([^/]+)/([^/]+)',AndViewSingleStream),
+    ('/andViewNearbyPhotos/([^/]+)/([^/]+)',AndViewNearbyPhotos),
+    ('/andSearchHandler/([^/]+)',AndSearchHandler),
+    ('/andGetUploadURL/([^/]+)',AndGetUploadURL),
+    ('/andUploadHandler/([^/]+)',AndUploadHandler),
+    ('/andSubscribedStream/([^/]+)',AndSubscribedStream),
 	('/manage', Management),
 	('/create',Create),
 	('/createStreamHandler',CreateStreamHandler),
